@@ -34,6 +34,9 @@ export interface RoomState {
   chapter: number;
   phase: Phase;
   poll_ends_at: string | null;
+  /* Bumped by nv_set_phase on every change. Clients use it to order updates,
+     so a slow response cannot overwrite a newer one. */
+  updated_at: string;
 }
 
 export interface Tally {
@@ -130,7 +133,7 @@ export async function setPhase(
 export async function fetchRoom(code: string): Promise<RoomState | null> {
   const { data, error } = await supabase
     .from("nv_rooms")
-    .select("code, chapter, phase, poll_ends_at")
+    .select("code, chapter, phase, poll_ends_at, updated_at")
     .eq("code", code)
     .maybeSingle();
   if (error) throw error;

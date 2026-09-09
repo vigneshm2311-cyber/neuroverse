@@ -21,31 +21,51 @@ import { JoinBadge, PollBars, QR, TimerRing } from "./PresentUI";
 
 export default function Present() {
   const reduced = useReducedMotion();
-  const [creds, setCreds] = useState(loadPresenter);
+  const [creds, setCreds] = useState<{ code: string; key: string } | null>(null);
   const [booting, setBooting] = useState(true);
   const [fatal, setFatal] = useState<string | null>(null);
+  const [resume, setResume] = useState<{ code: string; key: string; phase: Phase; chapter: number } | null>(null);
 
-  /* Reclaim the stored room if it still exists, otherwise open a fresh one.
-     A presenter who reloads mid-talk keeps the room and the audience with it. */
+  const openFresh = useCallback(async () => {
+    clearPresenter();
+    const fresh = await createRoom();
+    savePresenter(fresh);
+    setResume(null);
+    setCreds(fresh);
+  }, []);
+
+  /* Deciding what /present should do when a previous room is still stored.
+
+     Resuming unconditionally means a talk can never be started fresh — you land
+     back on whatever slide the last run ended on. Always opening a new room is
+     worse: an accidental refresh mid-talk would strand every phone in the room
+     on a code that is no longer being driven. So the only case that is actually
+     ambiguous gets asked about, and the rest happen silently. */
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
         const stored = loadPresenter();
-        if (stored && (await fetchRoom(stored.code))) {
-          if (alive) { setCreds(stored); setBooting(false); }
-          return;
+        if (stored) {
+          const existing = await fetchRoom(stored.code);
+          if (existing && existing.phase === "lobby") {
+            /* Nothing has happened in it yet — reuse it rather than litter. */
+            if (alive) { setCreds(stored); setBooting(false); }
+            return;
+          }
+          if (existing) {
+            if (alive) { setResume({ ...stored, phase: existing.phase, chapter: existing.chapter }); setBooting(false); }
+            return;
+          }
         }
-        clearPresenter();
-        const fresh = await createRoom();
-        savePresenter(fresh);
-        if (alive) { setCreds(fresh); setBooting(false); }
+        await openFresh();
+        if (alive) setBooting(false);
       } catch (e) {
         if (alive) { setFatal(e instanceof Error ? e.message : String(e)); setBooting(false); }
       }
     })();
     return () => { alive = false; };
-  }, []);
+  }, [openFresh]);
 
   const room = useRoom(creds?.code ?? null);
   const phase: Phase = room?.phase ?? "lobby";
@@ -56,6 +76,7 @@ export default function Present() {
   const [tally, setTally] = useState<Tally[]>([]);
   const [turnout, setTurnout] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [confirmNew, setConfirmNew] = useState(false);
 
   /* ---- moving the deck ------------------------------------------------- */
   const go = useCallback(async (next: Phase, nextChapter: number, seconds: number | null) => {
@@ -138,6 +159,19 @@ export default function Present() {
   }, [advance, retreat]);
 
   if (booting) return <Splash line="OPENING THE ROOM" />;
+
+  if (resume && !creds) {
+    return (
+      <Resume
+        code={resume.code}
+        phase={resume.phase}
+        chapter={resume.chapter}
+        onResume={() => { setCreds({ code: resume.code, key: resume.key }); setResume(null); }}
+        onFresh={() => { openFresh().catch((e) => setFatal(String(e))); }}
+      />
+    );
+  }
+
   if (fatal || !creds) return <Splash line="COULD NOT OPEN A ROOM" detail={fatal ?? undefined} />;
 
   const url = viewerUrl(creds.code);
@@ -238,10 +272,29 @@ export default function Present() {
       <footer className="flex items-center justify-between" style={{
         padding: "16px 30px", flexShrink: 0, borderTop: `1px solid ${C.line}`,
       }}>
-        <button onClick={retreat} className="nv-btn" style={{
-          background: "none", border: `1px solid ${C.line}`, color: C.muted, borderRadius: 2,
-          padding: "10px 16px", fontSize: 10.5, letterSpacing: "0.2em", cursor: "pointer",
-        }}>BACK</button>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={retreat} className="nv-btn" style={{
+            background: "none", border: `1px solid ${C.line}`, color: C.muted, borderRadius: 2,
+            padding: "10px 16px", fontSize: 10.5, letterSpacing: "0.2em", cursor: "pointer",
+          }}>BACK</button>
+
+          <button
+            onClick={() => {
+              if (!confirmNew) { setConfirmNew(true); return; }
+              setConfirmNew(false);
+              openFresh().catch((e) => setFatal(String(e)));
+            }}
+            onBlur={() => setConfirmNew(false)}
+            className="nv-btn"
+            style={{
+              background: "none", border: `1px solid ${confirmNew ? `rgba(${rgb(C.ai)},0.5)` : C.line}`,
+              color: confirmNew ? C.ai : C.faint, borderRadius: 2,
+              padding: "10px 16px", fontSize: 10.5, letterSpacing: "0.2em", cursor: "pointer",
+            }}
+          >
+            {confirmNew ? "SURE? THIS DROPS THE ROOM" : "NEW ROOM"}
+          </button>
+        </div>
 
         <span style={{ fontSize: 9.5, letterSpacing: "0.2em", color: C.faint }}>SPACE ADVANCES</span>
 
@@ -331,6 +384,44 @@ function Closing() {
         Nothing was simplified to get here — this is genuinely what the field is.
         The vocabulary was new. The ideas were already yours.
       </p>
+    </div>
+  );
+}
+
+function Resume({ code, phase, chapter, onResume, onFresh }: {
+  code: string; phase: Phase; chapter: number;
+  onResume: () => void; onFresh: () => void;
+}) {
+  const where = phase === "final"
+    ? "finished"
+    : `at question ${Math.min(chapter + 1, CHAPTERS.length)} of ${CHAPTERS.length}`;
+
+  return (
+    <div className="nv" style={{
+      minHeight: "100dvh", background: C.ink, color: C.text,
+      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 30, textAlign: "center",
+    }}>
+      <GlobalStyles />
+      <div style={{ fontSize: 10, letterSpacing: "0.26em", color: C.faint }}>A ROOM IS ALREADY OPEN</div>
+      <div style={{ marginTop: 14, fontSize: "clamp(30px,3.4vw,46px)", letterSpacing: "0.16em", color: C.bio, fontWeight: 600 }}>
+        {code}
+      </div>
+      <p className="nv-prose" style={{ marginTop: 14, color: C.muted, fontSize: 16, lineHeight: 1.7, maxWidth: "30em" }}>
+        It is {where}. Resume it if the audience already has this code on their
+        phones. Start a new room and that code stops being driven.
+      </p>
+
+      <div style={{ marginTop: 34, display: "flex", gap: 14, flexWrap: "wrap", justifyContent: "center" }}>
+        <button onClick={onResume} className="nv-btn nv-cta" style={{
+          background: C.bio, border: "none", color: C.ink, borderRadius: 2,
+          padding: "14px 26px", fontSize: 11.5, letterSpacing: "0.2em", fontWeight: 600, cursor: "pointer",
+        }}>RESUME {code}</button>
+
+        <button onClick={onFresh} className="nv-btn" style={{
+          background: "none", border: `1px solid ${C.line}`, color: C.muted, borderRadius: 2,
+          padding: "14px 26px", fontSize: 11.5, letterSpacing: "0.2em", cursor: "pointer",
+        }}>START A NEW ROOM</button>
+      </div>
     </div>
   );
 }

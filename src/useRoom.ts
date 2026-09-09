@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase, fetchRoom, type RoomState } from "./live";
 
 /* Follows one room.
@@ -12,13 +12,28 @@ import { supabase, fetchRoom, type RoomState } from "./live";
 export function useRoom(code: string | null): RoomState | null {
   const [room, setRoom] = useState<RoomState | null>(null);
 
+  const appliedAt = useRef(0);
+
   useEffect(() => {
     if (!code) return;
     let alive = true;
+    appliedAt.current = 0;
+
+    /* The reconciliation poll and the realtime socket race each other. A poll
+       issued just before the presenter advances resolves just after it, and
+       applying that response would silently rewind the deck for everyone
+       holding it. Order by updated_at and drop anything already superseded. */
+    const apply = (r: RoomState | null) => {
+      if (!alive || !r) return;
+      const stamp = r.updated_at ? new Date(r.updated_at).getTime() : 0;
+      if (stamp && stamp < appliedAt.current) return;
+      appliedAt.current = Math.max(appliedAt.current, stamp);
+      setRoom(r);
+    };
 
     const pull = () => {
       fetchRoom(code)
-        .then((r) => { if (alive && r) setRoom(r); })
+        .then(apply)
         .catch(() => { /* offline for a beat; the next tick tries again */ });
     };
 
@@ -29,7 +44,7 @@ export function useRoom(code: string | null): RoomState | null {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "nv_rooms", filter: `code=eq.${code}` },
-        (payload) => { if (alive && payload.new) setRoom(payload.new as RoomState); },
+        (payload) => { if (payload.new) apply(payload.new as RoomState); },
       )
       .subscribe();
 
