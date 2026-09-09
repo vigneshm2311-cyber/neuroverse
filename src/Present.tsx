@@ -170,7 +170,7 @@ export default function Present() {
             <div className="lg:col-span-2 flex flex-col items-center" style={{ position: "sticky", top: 8 }}>
               <div className="nv-stage3d" style={{ width: phase === "reveal" ? "min(280px, 100%)" : "min(400px, 100%)", transition: "width 700ms cubic-bezier(.16,.84,.44,1)" }}>
                 <div className="nv-float"><div className={reduced ? undefined : "nv-turn"}>
-                  <Scene scene={ch.region ? "brain" : ch.scene} region={ch.region} />
+                  <Scene scene={phase === "reveal" ? ch.scene : ch.region ? "brain" : ch.scene} region={ch.region} />
                 </div></div>
               </div>
               {phase === "question" && left !== null && (

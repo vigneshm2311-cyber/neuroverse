@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { C, rgb, LETTERS, CHAPTERS, GlobalStyles } from "./Neuroverse";
+import { C, rgb, LETTERS, CHAPTERS, GlobalStyles, Scene, useReducedMotion } from "./Neuroverse";
 import { POLL_SECONDS, castVote, fetchTally, fetchTurnout, type Tally } from "./live";
 import { useCountdown, useRoom } from "./useRoom";
 import { PollBars, TimerRing } from "./PresentUI";
@@ -13,6 +13,7 @@ import { PollBars, TimerRing } from "./PresentUI";
    ========================================================================== */
 
 export default function Viewer({ code }: { code: string }) {
+  const reduced = useReducedMotion();
   const room = useRoom(code);
   const [picked, setPicked] = useState<Record<number, number>>(() => {
     try { return JSON.parse(localStorage.getItem(`neuroverse.picks.${code}`) ?? "{}"); }
@@ -98,6 +99,19 @@ export default function Viewer({ code }: { code: string }) {
           </div>
         )}
 
+        {(phase === "question" || phase === "results" || phase === "reveal") && (
+          <div className="nv-stage3d" style={{ width: "min(250px, 54vw, 23vh)", margin: "0 auto 20px" }}>
+            <div className="nv-float">
+              <div className={reduced ? undefined : "nv-turn"}>
+                <Scene
+                  scene={phase === "reveal" ? ch.scene : ch.region ? "brain" : ch.scene}
+                  region={ch.region}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {phase === "question" && (
           <>
             <div className="flex items-center justify-between" style={{ marginBottom: 18 }}>
@@ -172,11 +186,21 @@ export default function Viewer({ code }: { code: string }) {
             )}
 
             {phase === "reveal" && (
-              <div className="nv-rise" style={{ marginTop: 26, borderTop: `1px solid ${C.line}`, paddingTop: 20 }}>
-                <p className="nv-prose" style={{ color: "#f2f8ff", fontSize: 18, lineHeight: 1.5 }}>{ch.bridge}</p>
-                <div style={{ marginTop: 16, fontSize: 9.5, letterSpacing: "0.24em", color: C.ai }}>{ch.name.toUpperCase()}</div>
-                <p className="nv-prose" style={{ marginTop: 10, color: C.body, fontSize: 15, lineHeight: 1.7 }}>{ch.teach[0]}</p>
-                <p style={{ marginTop: 20, fontSize: 9.5, letterSpacing: "0.22em", color: C.faint }}>LOOK UP — THE REST IS ON THE SCREEN</p>
+              <div className="nv-rise" style={{ marginTop: 26, borderTop: `1px solid ${C.line}`, paddingTop: 22 }}>
+                <div style={{ fontSize: 9.5, letterSpacing: "0.24em", color: C.bio }}>WHAT YOU JUST DESCRIBED</div>
+                <p className="nv-prose" style={{ marginTop: 10, color: C.body, fontSize: 15, lineHeight: 1.72 }}>{ch.brain}</p>
+
+                <p className="nv-prose" style={{ marginTop: 24, color: "#f2f8ff", fontSize: 19, lineHeight: 1.45 }}>{ch.bridge}</p>
+
+                <div style={{ marginTop: 22, fontSize: 9.5, letterSpacing: "0.24em", color: C.ai }}>{ch.name.toUpperCase()}</div>
+                {ch.teach.map((para, i) => (
+                  <p key={i} className="nv-prose" style={{ marginTop: 12, color: C.body, fontSize: 15, lineHeight: 1.72 }}>{para}</p>
+                ))}
+
+                <div style={{ marginTop: 24, paddingLeft: 14, borderLeft: `1px solid rgba(${rgb(C.ai)},0.35)` }}>
+                  <div style={{ fontSize: 9, letterSpacing: "0.22em", color: C.faint }}>WORTH KNOWING</div>
+                  <p className="nv-prose" style={{ marginTop: 8, color: C.muted, fontSize: 14, lineHeight: 1.7 }}>{ch.note}</p>
+                </div>
               </div>
             )}
           </>
