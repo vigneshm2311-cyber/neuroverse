@@ -5,7 +5,9 @@ neuroscience they already know. Ten chapters; every question is a clinical or
 neuroscience question, and the AI concept arrives as the answer's consequence
 rather than as a thing to be tested on.
 
-React + TypeScript + Vite + Tailwind v4. No backend, no API keys, no database.
+React + TypeScript + Vite + Tailwind v4.
+
+Reading it alone needs no backend at all. Presentation mode does — see below.
 
 ## Run it
 
@@ -23,6 +25,54 @@ npm run preview      # check the production build locally
 
 `dist/` is a static site. Drag it onto https://app.netlify.com/drop, or run
 `npx vercel` from this folder. Nothing server-side is required.
+
+## Presentation mode
+
+For running it live in front of a room. No accounts and no login anywhere.
+
+| Route | Who | What |
+|---|---|---|
+| `/` | anyone | The solo journey. Unchanged, and still needs no backend. |
+| `/present` | the presenter | The projected deck plus the controls. Opens a room on first load. |
+| `/live/CODE` | the audience | One phone, one vote. Follows the presenter; cannot lead. |
+
+Open `/present`, put the QR on screen, and press space. Each chapter runs:
+
+1. **Question** — the poll is open for `POLL_SECONDS` (30, in `src/live.ts`).
+   The room sees the countdown and a turnout count, never a breakdown.
+2. **Results** — the poll closes on its own when the clock runs out, and the
+   bars maximise to show what the room said. `CLOSE POLL NOW` ends it early.
+3. **Reveal** — one click marks the correct answer and brings up the teaching.
+4. Another click starts the next question.
+
+`SPACE` / `→` advance, `←` goes back. Going back from Results reopens the poll,
+which is the recovery if you advance by accident. The presenter's browser is the
+only client that writes state, so the room can never disagree about the slide.
+
+### Who is allowed to do what
+
+There is no login, so two things stand in for it:
+
+- the **room code** is public, and only needs to be unguessable enough that
+  nobody wanders into the wrong talk;
+- the **presenter key** is generated with the room, kept in the presenter's
+  `localStorage`, and checked in the database on every slide change. Refreshing
+  keeps the room; opening `/present` on another device starts a different one.
+
+None of this is enforced in the browser, because the browser cannot be trusted
+to enforce it. `nv_room_keys` and `nv_votes` have RLS on and no policies at all,
+so anon reaches neither. Everything goes through security-definer functions that
+check the rule themselves — including `nv_tally`, which refuses to return a
+breakdown while the poll is still open.
+
+Schema lives in the Supabase project's migrations: `nv_rooms`, `nv_room_keys`,
+`nv_votes`, and the functions `nv_create_room`, `nv_set_phase`, `nv_vote`,
+`nv_turnout`, `nv_tally`. The publishable key in `src/live.ts` is meant to sit in
+browser code; it carries no privileges of its own.
+
+Rooms are never cleaned up automatically. They are a few rows each, but if you
+run many talks, `delete from nv_rooms where created_at < now() - interval '30 days'`
+clears them out, votes included.
 
 ## Other scripts
 

@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 
-type RegionKey = "frontal" | "parietal" | "occipital" | "temporal" | "hippocampus" | "cerebellum" | "all";
-type SceneKey =
+export type RegionKey = "frontal" | "parietal" | "occipital" | "temporal" | "hippocampus" | "cerebellum" | "all";
+export type SceneKey =
   | "brain" | "neuron" | "synapse" | "data" | "deep"
   | "vision" | "language" | "memory" | "agent" | "unified";
 
-interface Chapter {
+export interface Chapter {
   n: string;
   title: string;
   scene: SceneKey;
@@ -39,7 +39,7 @@ interface Stats { score: number; streak: number; best: number }
    carried by type, space and hairlines, so the reading never feels like a form.
    ========================================================================== */
 
-const C = {
+export const C = {
   ink: "#05070e",
   deep: "#080d1a",
   bio: "#5eead4",       // everything about the brain
@@ -51,7 +51,7 @@ const C = {
   line: "rgba(255,255,255,0.09)",
 };
 
-const rgb = (hex: string): string => {
+export const rgb = (hex: string): string => {
   const h = hex.replace("#", "");
   return [
     parseInt(h.slice(0, 2), 16),
@@ -68,7 +68,7 @@ const rgb = (hex: string): string => {
    teach  — one or two plain paragraphs. This is the whole lesson.
    note   — one honest limit, quietly placed
    ------------------------------------------------------------------------- */
-const CHAPTERS: Chapter[] = [
+export const CHAPTERS: Chapter[] = [
   {
     n: "I",
     title: "Deciding",
@@ -343,7 +343,7 @@ const PICTURE: PictureStep[] = [
 /* ---------------------------------------------------------------------------
    STYLE
    ------------------------------------------------------------------------- */
-function GlobalStyles() {
+export function GlobalStyles() {
   return (
     <style>{`
       .nv { font-family: ui-sans-serif, -apple-system, "SF Pro Text", "Segoe UI", Inter, system-ui, sans-serif; }
@@ -397,7 +397,7 @@ function GlobalStyles() {
   );
 }
 
-function useReducedMotion() {
+export function useReducedMotion() {
   const [r, setR] = useState(false);
   useEffect(() => {
     if (!window.matchMedia) return;
@@ -575,7 +575,7 @@ const GLOW: Record<string, [number, number, number, number]> = {
 
 interface BrainProps { highlight?: RegionKey | null; allLit?: boolean }
 
-function BrainSVG({ highlight = null, allLit = false }: BrainProps) {
+export function BrainSVG({ highlight = null, allLit = false }: BrainProps) {
   const on = (k: string) => allLit || highlight === k || highlight === "all";
   return (
     <svg viewBox="0 0 460 380" className="w-full h-full" role="img"
@@ -884,7 +884,7 @@ function AgentSVG() {
   );
 }
 
-function Scene({ scene, region }: { scene: SceneKey; region: RegionKey | null }) {
+export function Scene({ scene, region }: { scene: SceneKey; region: RegionKey | null }) {
   switch (scene) {
     case "neuron": return <NeuronSVG />;
     case "synapse": return <SynapseSVG />;
@@ -1013,7 +1013,7 @@ function ChapterCard({ ch, onDone, reduced }: { ch: Chapter; onDone: () => void;
 /* ---------------------------------------------------------------------------
    QUESTION
    ------------------------------------------------------------------------- */
-const LETTERS = ["A", "B", "C", "D"];
+export const LETTERS = ["A", "B", "C", "D"];
 
 interface QuestionProps {
   ch: Chapter;
