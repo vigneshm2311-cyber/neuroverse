@@ -359,6 +359,7 @@ function GlobalStyles() {
       @keyframes nvPunch { 0% { opacity:0; transform: translateY(14px) scale(.98); filter: blur(6px);} 100% { opacity:1; transform:none; filter:none; } }
       @keyframes nvCam { from { transform: scale(1.06); filter: blur(6px);} to { opacity:1; transform:none; filter:none; } }
       @keyframes nvFloat { 0%,100% { transform: translate3d(0,-6px,0);} 50% { transform: translate3d(0,8px,0);} }
+      @keyframes nvTurn { 0%,100% { transform: rotateY(-30deg);} 50% { transform: rotateY(30deg);} }
       @keyframes nvBreathe { 0%,100% { opacity:.3; } 50% { opacity:.9; } }
       @keyframes nvRing { 0% { transform: scale(.6); opacity:.55; } 100% { transform: scale(1.9); opacity:0; } }
       @keyframes nvTravel { 0% { transform: translateX(0); opacity:0;} 15% { opacity:1;} 85% { opacity:1;} 100% { transform: translateX(166px); opacity:0;} }
@@ -370,6 +371,11 @@ function GlobalStyles() {
       @keyframes nvWiden { from { transform: scaleX(0); } to { transform: scaleX(1); } }
       @keyframes nvLift { 0% { transform: translateY(4px); opacity:0;} 30% { opacity:1;} 100% { transform: translateY(-30px); opacity:0;} }
       .nv-float { animation: nvFloat 10s ease-in-out infinite; }
+      /* nv-cam, nv-float and nv-turn each animate transform, so they have to
+         sit on separate elements: two animation shorthands on one node means
+         the later rule silently cancels the earlier one. */
+      .nv-stage3d { perspective: 1100px; }
+      .nv-turn { animation: nvTurn 18s ease-in-out infinite; transform-style: preserve-3d; will-change: transform; }
       .nv-shake { animation: nvShake 380ms ease-in-out; }
       .nv-rule { transform-origin: left; animation: nvWiden 900ms cubic-bezier(.16,.84,.44,1) forwards; }
       .nv-btn { transition: transform 240ms cubic-bezier(.16,.84,.44,1), border-color 240ms ease, background 240ms ease, color 240ms ease; }
@@ -384,6 +390,7 @@ function GlobalStyles() {
           transition-duration: 1ms !important;
         }
         .nv-rise,.nv-fade,.nv-punch,.nv-cam { opacity:1 !important; transform:none !important; filter:none !important; }
+        .nv-turn { animation: none !important; transform: none !important; }
         .nv-rule { transform: none !important; }
       }
     `}</style>
@@ -1185,6 +1192,8 @@ function Journey({ onFinish, reduced, stats }: JourneyProps) {
   }, [index, onFinish]);
 
   const answered = selected !== null;
+  const sceneKey = answered ? ch.scene : ch.region ? "brain" : ch.scene;
+  const revolving = sceneKey === "brain" || sceneKey === "unified";
 
   return (
     <div className="relative nv-screen w-full flex flex-col"
@@ -1217,9 +1226,13 @@ function Journey({ onFinish, reduced, stats }: JourneyProps) {
         <div className="relative lg:col-span-2 flex flex-col items-center justify-center"
           style={{ minHeight: 0, padding: desktop ? "0 24px" : "2px 16px 12px" }}>
           <ParallaxLayer depth={desktop ? 4 : 0} className="w-full flex items-center justify-center">
-            <div key={`${index}-${answered}`} className="nv-cam nv-float"
+            <div key={`${index}-${answered}`} className="nv-cam nv-stage3d"
               style={{ width: desktop ? "min(430px, 100%, 46vh)" : "min(300px, 62vw, 30vh)" }}>
-              <Scene scene={answered ? ch.scene : ch.region ? "brain" : ch.scene} region={ch.region} />
+              <div className="nv-float">
+                <div className={revolving ? "nv-turn" : undefined}>
+                  <Scene scene={sceneKey} region={ch.region} />
+                </div>
+              </div>
             </div>
           </ParallaxLayer>
           <div className="mt-2" style={{ color: C.faint, fontSize: 9.5, letterSpacing: "0.26em" }}>
