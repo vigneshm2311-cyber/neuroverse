@@ -1059,12 +1059,21 @@ function QuestionBlock({ ch, index, selected, onSelect }: QuestionProps) {
                 padding: "16px 4px", background: "none", cursor: answered ? "default" : "pointer",
                 borderTop: "none", borderLeft: "none", borderRight: "none",
                 borderBottom: `1px solid ${answered && isCorrect ? `rgba(${rgb(C.bio)},0.5)` : C.line}`,
-                color: answered && isCorrect ? C.text : answered ? C.faint : C.body,
+                color: answered && isCorrect ? C.text : answered ? C.muted : C.body,
               }}>
-              <span style={{ flexShrink: 0, fontSize: 10.5, letterSpacing: "0.2em", color: answered && isCorrect ? C.bio : C.faint, width: 16 }}>
-                {answered && isCorrect ? "✓" : LETTERS[i]}
+              <span style={{ flexShrink: 0, fontSize: 10.5, letterSpacing: "0.2em", color: answered && isCorrect ? C.bio : C.muted, width: 16 }}>
+                {answered ? (isCorrect ? "✓" : "✕") : LETTERS[i]}
               </span>
-              <span className="nv-prose" style={{ fontSize: "clamp(15px,2.2vw,17px)", lineHeight: 1.5 }}>{opt}</span>
+              <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 7 }}>
+                <span className="nv-prose" style={{ fontSize: "clamp(15px,2.2vw,17px)", lineHeight: 1.5 }}>{opt}</span>
+                {answered && (
+                  <span style={{ fontSize: 9.5, letterSpacing: "0.22em", fontWeight: 600, color: isCorrect ? C.bio : C.muted }}>
+                    {isCorrect
+                      ? (picked ? "YOUR ANSWER · CORRECT" : "CORRECT ANSWER")
+                      : "YOUR ANSWER · INCORRECT"}
+                  </span>
+                )}
+              </span>
             </button>
           );
         })}
@@ -1104,7 +1113,7 @@ function Reveal({ ch, correct, streak, onContinue, isLast, reduced }: RevealProp
       {/* verdict — one line, no box */}
       <div className="flex items-center gap-4" style={{ position: "relative" }}>
         <span style={{ color: correct ? C.bio : C.muted, fontSize: 10.5, letterSpacing: "0.28em", fontWeight: 600 }}>
-          {correct ? "CORRECT" : "THE ANSWER IS MARKED ABOVE"}
+          {correct ? "CORRECT" : "NOT QUITE"}
         </span>
         {correct && streak > 2 && (
           <span style={{ color: C.faint, fontSize: 10, letterSpacing: "0.2em" }}>{streak} IN A ROW</span>
@@ -1343,9 +1352,12 @@ function Final({ stats, onRestart, reduced }: FinalProps) {
             The vocabulary was new. The ideas were already yours.
           </p>
           <p className="nv-prose" style={{ marginTop: 26, color: C.muted, fontSize: "clamp(14px,1.9vw,15.5px)", lineHeight: 1.75, maxWidth: "31em" }}>
-            If you want to take it further: begin where an error would be obvious and
-            reversible rather than with diagnosis, and ask of any tool what it was
-            trained on, how it fails, and whether it can show you its source.
+            If you want to take it further, start where a mistake would surface the same
+            day and cost nothing to undo — a discharge summary, a long chart to condense,
+            a worklist to put in order — rather than anywhere near a diagnosis. And ask
+            any tool three questions before you trust it: which patients it learned from,
+            whether you would be able to tell when it is wrong, and whether it can show
+            you the source for what it just told you.
           </p>
 
           <div className="mt-14 pb-10 flex items-center gap-6 flex-wrap">
